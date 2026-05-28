@@ -27,6 +27,13 @@ The API documentation is defined using Zod schemas and generated into an OpenAPI
 ## Deployment
 - CI/CD workflow: `../.github/workflows/backend-deploy.yml`
 - Deployment configuration and required secrets: [`../docs/backend-deploy.md`](../docs/backend-deploy.md)
+- **Performance (Wave 5):** [`../docs/backend-performance-wave5.md`](../docs/backend-performance-wave5.md) — read cache, DB pool tuning, RPC retries, rollback notes
+
+## Performance
+
+- **Bounded read cache** — Soroban read simulations cached with TTL and max entry count (`READ_CACHE_TTL_MS`, `READ_CACHE_MAX_ENTRIES`)
+- **Postgres pool** — connection cap via `DATABASE_POOL_MAX` (default 10)
+- **RPC retries** — exponential backoff on transient Soroban errors
 
 ## Structure
 - `src/index.ts` - App entry
