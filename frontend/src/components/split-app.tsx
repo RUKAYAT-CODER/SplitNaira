@@ -33,9 +33,9 @@ import {
 import { isOwner } from "@/lib/address";
 import {
   createSorobanRpcServer,
-  signWithFreighter,
+  signWithWallet,
   submitSorobanTransactionAndPoll,
-} from "@/lib/freighter";
+} from "@/lib/wallet";
 import {
   type SplitProject,
   getExplorerUrl,
@@ -341,7 +341,7 @@ export function SplitApp() {
 
   function onDisconnectWallet() {
     notify.info(
-      "Freighter does not support programmatic disconnect. Use the extension to revoke access.",
+      "Disconnect from your wallet via the extension or app to revoke access.",
     );
   }
 
@@ -382,7 +382,7 @@ export function SplitApp() {
         to: recoveryToInput.trim(),
         amount,
       });
-      const signedTxXdr = await signWithFreighter(
+      const signedTxXdr = await signWithWallet(
         buildResponse.xdr,
         buildResponse.metadata.networkPassphrase,
       );
@@ -416,7 +416,7 @@ export function SplitApp() {
         editTitle.trim(),
         editProjectType.trim(),
       );
-      const signedTxXdr = await signWithFreighter(
+      const signedTxXdr = await signWithWallet(
         buildResponse.xdr,
         buildResponse.metadata.networkPassphrase,
       );
@@ -453,7 +453,7 @@ export function SplitApp() {
           basisPoints: Number.parseInt(c.basisPoints, 10),
         })),
       );
-      const signedTxXdr = await signWithFreighter(
+      const signedTxXdr = await signWithWallet(
         buildResponse.xdr,
         buildResponse.metadata.networkPassphrase,
       );
@@ -508,7 +508,7 @@ export function SplitApp() {
 
   const onSubmit: SubmitHandler<CreateSplitFormValues> = async (data) => {
     if (!wallet.connected || !wallet.address) {
-      notify.error("Connect Freighter wallet first.");
+      notify.error("Connect your wallet first.");
       return;
     }
     const collaboratorPayload = data.collaborators.map((collaborator) => ({
@@ -528,7 +528,7 @@ export function SplitApp() {
         token: data.token.trim(),
         collaborators: collaboratorPayload,
       });
-      const signedTxXdr = await signWithFreighter(
+      const signedTxXdr = await signWithWallet(
         buildResponse.xdr,
         buildResponse.metadata.networkPassphrase,
       );
@@ -616,7 +616,7 @@ export function SplitApp() {
     setShowDistributeModal(false);
     try {
       const { xdr, metadata } = await buildDistributeXdr(fetchedProject.projectId, wallet.address);
-      const signedTxXdr = await signWithFreighter(xdr, metadata.networkPassphrase);
+      const signedTxXdr = await signWithWallet(xdr, metadata.networkPassphrase);
       const server = createSorobanRpcServer();
       const transaction = new Transaction(signedTxXdr, metadata.networkPassphrase);
 
@@ -665,7 +665,7 @@ export function SplitApp() {
     setIsLocking(true);
     try {
       const { xdr, metadata } = await buildLockProjectXdr(fetchedProject.projectId, wallet.address);
-      const signedTxXdr = await signWithFreighter(xdr, metadata.networkPassphrase);
+      const signedTxXdr = await signWithWallet(xdr, metadata.networkPassphrase);
       const server = createSorobanRpcServer();
       const transaction = new Transaction(signedTxXdr, metadata.networkPassphrase);
 
@@ -710,7 +710,7 @@ export function SplitApp() {
         wallet.address,
         amountInStroops,
       );
-      const signedTxXdr = await signWithFreighter(xdr, metadata.networkPassphrase);
+      const signedTxXdr = await signWithWallet(xdr, metadata.networkPassphrase);
       const server = createSorobanRpcServer();
       const transaction = new Transaction(signedTxXdr, metadata.networkPassphrase);
 
@@ -853,7 +853,7 @@ export function SplitApp() {
           ? await buildPauseDistributionsXdr(wallet.address)
           : await buildUnpauseDistributionsXdr(wallet.address);
 
-      const signedTxXdr = await signWithFreighter(
+      const signedTxXdr = await signWithWallet(
         buildResponse.xdr,
         buildResponse.metadata.networkPassphrase,
       );
@@ -887,7 +887,7 @@ export function SplitApp() {
         action === "allow"
           ? await buildAllowTokenXdr(wallet.address, normalizedAllowlistToken)
           : await buildDisallowTokenXdr(wallet.address, normalizedAllowlistToken);
-      const signedTxXdr = await signWithFreighter(
+      const signedTxXdr = await signWithWallet(
         buildResponse.xdr,
         buildResponse.metadata.networkPassphrase,
       );
@@ -963,6 +963,13 @@ export function SplitApp() {
                 </button>
               ) : (
                 <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={onConnectWallet}
+                    className="premium-button rounded-full border bg-white/5 px-6 py-3 text-sm"
+                  >
+                    Switch Wallet
+                  </button>
                   <button
                     type="button"
                     onClick={onReconnectWallet}

@@ -9,10 +9,10 @@ import {
   useRef,
 } from "react";
 import {
-  connectFreighter,
-  getFreighterWalletState,
+  getWalletState,
+  connectWallet,
   type WalletState,
-} from "../lib/freighter";
+} from "../lib/wallet";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -91,7 +91,7 @@ export function useWalletState() {
   const refresh = useCallback(async () => {
     dispatch({ type: "LOADING" });
     try {
-      const walletState = await getFreighterWalletState();
+      const walletState = await getWalletState();
       if (mountedRef.current)
         dispatch({ type: "SUCCESS", payload: walletState });
     } catch (err) {
@@ -106,7 +106,7 @@ export function useWalletState() {
   const connect = useCallback(async () => {
     dispatch({ type: "LOADING" });
     try {
-      const walletState = await connectFreighter();
+      const walletState = await connectWallet();
       if (mountedRef.current)
         dispatch({ type: "SUCCESS", payload: walletState });
     } catch (err) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import type { WalletState } from "../lib/freighter";
+import type { WalletState } from "../lib/wallet";
 import { getEnv } from "../lib/env";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -9,7 +9,7 @@ import { getEnv } from "../lib/env";
 export type NetworkMismatchSeverity = "error" | "warning" | "ok";
 
 export interface NetworkGuardResult {
-  /** True when Freighter's network differs from NEXT_PUBLIC_STELLAR_NETWORK */
+  /** True when the wallet's network differs from NEXT_PUBLIC_STELLAR_NETWORK */
   mismatch: boolean;
   severity: NetworkMismatchSeverity;
   /** The network configured in env */

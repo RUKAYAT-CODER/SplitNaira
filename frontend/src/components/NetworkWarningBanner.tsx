@@ -9,7 +9,7 @@ interface NetworkWarningBannerProps {
 }
 
 /**
- * Renders an inline banner when Freighter's network doesn't match the app's
+ * Renders an inline banner when the wallet's network doesn't match the app's
  * configured network. Returns null when there is no mismatch.
  *
  * @example
@@ -45,13 +45,13 @@ export function NetworkWarningBanner({
       <div className="flex-1 space-y-1">
         <p className="font-semibold text-red-300">Wrong Network</p>
         <p className="leading-snug">
-          Freighter is connected to{" "}
+          Your wallet is connected to{" "}
           <span className="font-mono font-bold">{guard.actualNetwork}</span>,
           but this app requires{" "}
           <span className="font-mono font-bold">{guard.expectedNetwork}</span>.
         </p>
         <p className="text-red-400/80">
-          Open Freighter, switch to{" "}
+          Open your wallet, switch to{" "}
           <span className="font-mono">{guard.expectedNetwork}</span>, then
           refresh the page.
         </p>

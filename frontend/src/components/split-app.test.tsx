@@ -9,9 +9,9 @@ import { WalletProvider } from "./wallet-provider";
 
 const mocks = vi.hoisted(() => ({
   mockUseWallet: vi.fn(),
-  mockGetFreighterWalletState: vi.fn(),
-  mockConnectFreighter: vi.fn(),
-  mockSignWithFreighter: vi.fn(),
+  mockGetWalletState: vi.fn(),
+  mockConnectWallet: vi.fn(),
+  mockSignWithWallet: vi.fn(),
   mockGetAllSplits: vi.fn(),
   mockGetClaimable: vi.fn(),
   mockGetSplit: vi.fn(),
@@ -27,15 +27,15 @@ const mocks = vi.hoisted(() => ({
   mockPollTransaction: vi.fn()
 }));
 
-vi.mock("@/lib/freighter", () => {
+vi.mock("@/lib/wallet", () => {
   const mockRpc = () => ({
     sendTransaction: mocks.mockSendTransaction,
     pollTransaction: mocks.mockPollTransaction
   });
   return {
-    getFreighterWalletState: mocks.mockGetFreighterWalletState,
-    connectFreighter: mocks.mockConnectFreighter,
-    signWithFreighter: mocks.mockSignWithFreighter,
+    getWalletState: mocks.mockGetWalletState,
+    connectWallet: mocks.mockConnectWallet,
+    signWithWallet: mocks.mockSignWithWallet,
     createSorobanRpcServer: mockRpc,
     submitSorobanTransactionAndPoll: async (
       server: ReturnType<typeof mockRpc>,
@@ -156,7 +156,7 @@ describe("SplitApp lock project flow", () => {
       connect: vi.fn(),
       refresh: vi.fn()
     });
-    mocks.mockGetFreighterWalletState.mockResolvedValue({
+    mocks.mockGetWalletState.mockResolvedValue({
       connected: true,
       address: "GOWNER123",
       network: "testnet"
@@ -166,7 +166,7 @@ describe("SplitApp lock project flow", () => {
     mocks.mockGetProjectHistory.mockResolvedValue({ items: [], nextCursor: null });
     mocks.mockGetTokenAllowlist.mockResolvedValue(baseAllowlist);
     mocks.mockGetSplit.mockResolvedValue(baseProject);
-    mocks.mockSignWithFreighter.mockResolvedValue("SIGNED_XDR");
+    mocks.mockSignWithWallet.mockResolvedValue("SIGNED_XDR");
     mocks.mockBuildLockProjectXdr.mockResolvedValue({
       xdr: "LOCK_XDR",
       metadata: { networkPassphrase: "TESTNET", contractId: "CID" }
@@ -198,7 +198,7 @@ describe("SplitApp lock project flow", () => {
       connect: vi.fn(),
       refresh: vi.fn()
     });
-    mocks.mockGetFreighterWalletState.mockResolvedValue({
+    mocks.mockGetWalletState.mockResolvedValue({
       connected: true,
       address: "GNOTOWNER",
       network: "testnet"
@@ -282,7 +282,7 @@ describe("Issue #174: owner gating and lock lifecycle", () => {
       connect: vi.fn(),
       refresh: vi.fn()
     });
-    mocks.mockGetFreighterWalletState.mockResolvedValue({
+    mocks.mockGetWalletState.mockResolvedValue({
       connected: true,
       address: "GOWNER123",
       network: "testnet"
@@ -292,7 +292,7 @@ describe("Issue #174: owner gating and lock lifecycle", () => {
     mocks.mockGetProjectHistory.mockResolvedValue({ items: [], nextCursor: null });
     mocks.mockGetTokenAllowlist.mockResolvedValue(baseAllowlist);
     mocks.mockGetSplit.mockResolvedValue(baseProject);
-    mocks.mockSignWithFreighter.mockResolvedValue("SIGNED_XDR");
+    mocks.mockSignWithWallet.mockResolvedValue("SIGNED_XDR");
     mocks.mockBuildLockProjectXdr.mockResolvedValue({
       xdr: "LOCK_XDR",
       metadata: { networkPassphrase: "TESTNET", contractId: "CID" }
@@ -307,7 +307,7 @@ describe("Issue #174: owner gating and lock lifecycle", () => {
       connect: vi.fn(),
       refresh: vi.fn()
     });
-    mocks.mockGetFreighterWalletState.mockResolvedValue({
+    mocks.mockGetWalletState.mockResolvedValue({
       connected: false,
       address: null,
       network: null
@@ -324,7 +324,7 @@ describe("Issue #174: owner gating and lock lifecycle", () => {
       connect: vi.fn(),
       refresh: vi.fn()
     });
-    mocks.mockGetFreighterWalletState.mockResolvedValue({
+    mocks.mockGetWalletState.mockResolvedValue({
       connected: true,
       address: "GATTACKER_NOT_OWNER",
       network: "testnet"
@@ -372,7 +372,7 @@ describe("Issue #174: owner gating and lock lifecycle", () => {
       connect: vi.fn(),
       refresh: vi.fn()
     });
-    mocks.mockGetFreighterWalletState.mockResolvedValue({
+    mocks.mockGetWalletState.mockResolvedValue({
       connected: true,
       address: "GRANDOM_USER",
       network: "testnet"
@@ -397,7 +397,7 @@ describe("SplitApp admin allowlist flow", () => {
       connect: vi.fn(),
       refresh: vi.fn()
     });
-    mocks.mockGetFreighterWalletState.mockResolvedValue({
+    mocks.mockGetWalletState.mockResolvedValue({
       connected: true,
       address: "GOWNER123",
       network: "testnet"
@@ -407,7 +407,7 @@ describe("SplitApp admin allowlist flow", () => {
     mocks.mockGetProjectHistory.mockResolvedValue({ items: [], nextCursor: null });
     mocks.mockGetTokenAllowlist.mockResolvedValue(baseAllowlist);
     mocks.mockGetSplit.mockResolvedValue(baseProject);
-    mocks.mockSignWithFreighter.mockResolvedValue("SIGNED_XDR");
+    mocks.mockSignWithWallet.mockResolvedValue("SIGNED_XDR");
     mocks.mockBuildAllowTokenXdr.mockResolvedValue({
       xdr: "ALLOW_XDR",
       metadata: { networkPassphrase: "TESTNET", contractId: "CID" }
@@ -428,7 +428,7 @@ describe("SplitApp admin allowlist flow", () => {
   });
 
   it("hides the admin allowlist panel for a non-admin wallet", async () => {
-    mocks.mockGetFreighterWalletState.mockResolvedValue({
+    mocks.mockGetWalletState.mockResolvedValue({
       connected: true,
       address: "GNOTADMIN",
       network: "testnet"
@@ -489,7 +489,7 @@ describe("SplitApp distribute flow", () => {
       connect: vi.fn(),
       refresh: vi.fn()
     });
-    mocks.mockGetFreighterWalletState.mockResolvedValue({
+    mocks.mockGetWalletState.mockResolvedValue({
       connected: true,
       address: "GOWNER123",
       network: "testnet"
@@ -499,7 +499,7 @@ describe("SplitApp distribute flow", () => {
     mocks.mockGetProjectHistory.mockResolvedValue({ items: [], nextCursor: null });
     mocks.mockGetTokenAllowlist.mockResolvedValue(baseAllowlist);
     mocks.mockGetSplit.mockResolvedValue({ ...baseProject, balance: "5000" });
-    mocks.mockSignWithFreighter.mockResolvedValue("SIGNED_XDR");
+    mocks.mockSignWithWallet.mockResolvedValue("SIGNED_XDR");
     mocks.mockBuildDistributeXdr.mockResolvedValue({
       xdr: "DISTRIBUTE_XDR",
       metadata: { networkPassphrase: "TESTNET", contractId: "CID" }
@@ -558,7 +558,7 @@ describe("SplitApp distribute flow", () => {
       connect: vi.fn(),
       refresh: vi.fn()
     });
-    mocks.mockGetFreighterWalletState.mockResolvedValue({
+    mocks.mockGetWalletState.mockResolvedValue({
       connected: false,
       address: null,
       network: null
@@ -589,7 +589,7 @@ describe("SplitApp async state handling", () => {
       connect: vi.fn(),
       refresh: vi.fn()
     });
-    mocks.mockGetFreighterWalletState.mockResolvedValue({
+    mocks.mockGetWalletState.mockResolvedValue({
       connected: true,
       address: "GOWNER123",
       network: "testnet"

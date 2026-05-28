@@ -27,7 +27,7 @@ export function useNetworkAction() {
     <T>(action: () => Promise<T>) =>
       async (): Promise<T | undefined> => {
         if (!wallet.connected) {
-          toast("Please connect your Freighter wallet first.", "warning");
+          toast("Please connect your wallet first.", "warning");
           return undefined;
         }
 
