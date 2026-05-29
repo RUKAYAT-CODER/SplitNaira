@@ -2,7 +2,7 @@ import { getStellarRpcServer, loadStellarConfig, executeWithRetry } from "./stel
 import { getDataSource } from "./database.js";
 import { TransactionRecord } from "../entities/Transaction.js";
 import { logger } from "./logger.js";
-import { nativeToScVal, scValToNative, xdr } from "@stellar/stellar-sdk";
+import { scValToNative } from "@stellar/stellar-sdk";
 import { fetchProjectById } from "./splits.service.js";
 
 let pollInterval: NodeJS.Timeout | null = null;
@@ -61,7 +61,7 @@ export async function pollEvents() {
     const filterOptions: Parameters<typeof server.getEvents>[0] = cursor
       ? { filters, cursor, limit: 100 }
       : startLedger
-        ? { filters, startLedger, limit: 100 } as any
+        ? { filters, startLedger, limit: 100 }
         : { filters, cursor: "", limit: 100 };
 
     const response = await executeWithRetry(() => server.getEvents(filterOptions));

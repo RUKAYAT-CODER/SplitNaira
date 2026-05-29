@@ -206,7 +206,7 @@ describe("getEnvDiagnostics()", () => {
 
 describe("printEnvDiagnostics()", () => {
   it("logs to console without throwing", () => {
-    const spy = vi.spyOn(logger, "info").mockImplementation(() => undefined as any);
+    const spy = vi.spyOn(logger, "info").mockImplementation(() => logger);
     Object.assign(process.env, VALID_ENV);
 
     expect(() => printEnvDiagnostics()).not.toThrow();
@@ -221,7 +221,7 @@ describe("printEnvDiagnostics()", () => {
       .spyOn(logger, "info")
       .mockImplementation((msg: string) => {
         lines.push(msg);
-        return undefined as any;
+        return logger;
       });
 
     printEnvDiagnostics();

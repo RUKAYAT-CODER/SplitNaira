@@ -45,7 +45,7 @@ export interface PayoutIndexConfig {
   maxCacheSize: number;
 }
 
-export function createPayoutHistoryService(config?: Partial<PayoutIndexConfig>): PayoutHistoryIndex {
+export function createPayoutHistoryService(_config?: Partial<PayoutIndexConfig>): PayoutHistoryIndex {
   return {
     async getPayouts(filters) {
       try {
