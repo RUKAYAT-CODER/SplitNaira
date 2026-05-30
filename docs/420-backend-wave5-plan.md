@@ -44,12 +44,12 @@ Planned Workstreams
 
 Implementation Checklist (to be included in PR description)
 ---------------------------------------------------------
-- [ ] Implementation plan added (this file)
-- [ ] Changes are covered by unit and/or e2e tests
-- [ ] CI passes (lint, typecheck, tests)
-- [ ] README and docs updated
-- [ ] Runbook updated with rollback steps
-- [ ] Operational impact summary included in PR
+- [x] Implementation plan added (this file)
+- [x] Changes are covered by unit and/or e2e tests
+- [x] CI passes (lint, typecheck, tests)
+- [x] README and docs updated
+- [x] Runbook updated with rollback steps
+- [x] Operational impact summary included in PR
 
 PR Description Template
 -----------------------

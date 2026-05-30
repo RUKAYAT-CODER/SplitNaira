@@ -182,6 +182,5 @@ if (process.env.NODE_ENV !== "test") {
       process.exit(1);
     }
   };
-  // eslint-disable-next-line @typescript-eslint/no-floating-promises
-  start();
+  void start();
 }
