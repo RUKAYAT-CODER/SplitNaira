@@ -105,6 +105,16 @@ splitNaira/
 └── demo/          # Static prototype
 ```
 
+## Operational Health Checks
+
+| Endpoint | Purpose |
+|-----------|----------|
+| /health/live | Liveness Probe |
+| /health/ready | Readiness Probe |
+| /health/startup | Startup Probe |
+
+Used for Kubernetes, Docker Swarm and cloud deployment monitoring.
+
 ## Documentation
 
 - [Deployment Runbook](./docs/deployment.md)
