@@ -115,6 +115,22 @@ splitNaira/
 
 Used for Kubernetes, Docker Swarm and cloud deployment monitoring.
 
+## Observability
+
+### Metrics
+
+GET /metrics
+
+### Request Tracing
+
+All requests include:
+
+X-Correlation-Id
+
+### Logging
+
+Structured JSON logs are emitted for production monitoring.
+
 ## Documentation
 
 - [Deployment Runbook](./docs/deployment.md)
