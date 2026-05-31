@@ -13,6 +13,8 @@ mod events;
 use events::{
     CollaboratorsUpdated, DepositReceived, DistributionComplete, MetadataUpdated,
     OwnershipTransferred, PaymentSent, ProjectCreated, ProjectLocked, UnallocatedWithdrawn,
+    DepositReceived, DistributionComplete, MetadataUpdated, OwnershipTransferred, PaymentSent,
+    ProjectCreated, ProjectLocked, UnallocatedWithdrawn, CollaboratorsUpdated,
 };
 #[cfg(test)]
 mod tests;
@@ -731,6 +733,12 @@ impl SplitNairaContract {
 
         if amount <= 0 {
             return Err(SplitError::InvalidAmount);
+        }
+
+        // Security hardening (Wave 5 / issue #401): prevent accidental self-transfer
+        // that would lock funds inside the contract indefinitely.
+        if to == env.current_contract_address() {
+            return Err(SplitError::InvalidRecipient);
         }
 
         let available = Self::get_unallocated_balance(env.clone(), token.clone())?;
