@@ -1,0 +1,98 @@
+name: Mainnet Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: "Deployment target override (defaults to repo variable BACKEND_DEPLOY_TARGET)"
+        required: false
+        default: "render"
+      deploy_environment:
+        description: "Deployment environment for this workflow"
+        required: false
+        default: "production"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mainnet-deploy
+  cancel-in-progress: true
+
+jobs:
+  validate-mainnet-config:
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_TARGET_INPUT: ${{ github.event.inputs.deploy_target }}
+      DEPLOY_ENV_INPUT: ${{ github.event.inputs.deploy_environment }}
+      BACKEND_DEPLOY_TARGET: ${{ vars.BACKEND_DEPLOY_TARGET }}
+      RENDER_BACKEND_DEPLOY_HOOK_URL: ${{ secrets.RENDER_BACKEND_DEPLOY_HOOK_URL }}
+      MAINNET_CONTRACT_ID: ${{ secrets.MAINNET_CONTRACT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - run: npm ci --no-audit --no-fund
+      - name: Validate mainnet deploy configuration
+        run: npx tsx backend/src/utils/deploy-config.ts validate "$DEPLOY_TARGET_INPUT" "$DEPLOY_ENV_INPUT"
+
+  deploy-mainnet:
+    runs-on: ubuntu-latest
+    needs: validate-mainnet-config
+    environment: production
+    env:
+      DEPLOY_TARGET_INPUT: ${{ github.event.inputs.deploy_target }}
+      DEPLOY_TARGET_REPO: ${{ vars.BACKEND_DEPLOY_TARGET }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Resolve deploy target
+        id: target
+        run: |
+          target="$DEPLOY_TARGET_INPUT"
+          if [ -z "$target" ]; then
+            target="$DEPLOY_TARGET_REPO"
+          fi
+          if [ -z "$target" ]; then
+            target="render"
+          fi
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+          echo "Resolved mainnet deploy target: $target"
+
+      - name: Trigger Render backend deploy
+        if: steps.target.outputs.target == 'render'
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_BACKEND_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "Missing required secret: RENDER_BACKEND_DEPLOY_HOOK_URL"
+            exit 1
+          fi
+          curl --fail --silent --show-error -X POST "$RENDER_BACKEND_DEPLOY_HOOK_URL"
+          echo "Render deploy triggered successfully."
+
+      - name: Fail on unsupported deploy target
+        if: steps.target.outputs.target != 'render'
+        run: |
+          echo "Unsupported deploy target: ${{ steps.target.outputs.target }}"
+          echo "Supported targets: render"
+          exit 1
+
+  post-deploy-smoke:
+    runs-on: ubuntu-latest
+    needs: deploy-mainnet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - name: Post-deploy readiness smoke check
+        if: vars.BACKEND_SMOKE_URL != ''
+        env:
+          BACKEND_URL: ${{ vars.BACKEND_SMOKE_URL }}
+          SMOKE_TIMEOUT_MS: 300000
+        run: node scripts/deploy-smoke-check.mjs
+      - name: Skip smoke check when BACKEND_SMOKE_URL is unset
+        if: vars.BACKEND_SMOKE_URL == ''
+        run: echo "BACKEND_SMOKE_URL not configured — skipping post-deploy smoke check."

@@ -4,6 +4,7 @@ import { clsx } from "clsx";
 import type { SplitProject } from "@/lib/stellar";
 import type { ProjectHistoryItem, AdminStatusState } from "@/lib/api";
 import type { WalletState } from "@/lib/wallet";
+import { DashboardGridSkeleton, ListSkeleton } from "../Skeleton";
 import { TransactionReceiptView, type TransactionReceipt } from "../TransactionReceiptView";
 
 interface ProjectsListProps {
@@ -81,7 +82,9 @@ export function ProjectsList({
               </div>
             )}
           </div>
-          {projectsList.length > 0 ? (
+          {isLoadingProjectsList && projectsList.length === 0 ? (
+            <DashboardGridSkeleton count={4} />
+          ) : projectsList.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 animate-in fade-in">
               {projectsList.map((p) => (
                 <button
@@ -107,11 +110,9 @@ export function ProjectsList({
           ) : (
             <div className="glass-card rounded-[2.5rem] p-12 text-center">
               <p className="text-muted text-sm font-medium">
-                {isLoadingProjectsList
-                  ? "Loading projects..."
-                  : projectsListError
-                    ? "Could not load projects. Retry refresh."
-                    : "No projects loaded yet. Click Refresh Projects to load."}
+                {projectsListError
+                  ? "Could not load projects. Retry refresh."
+                  : "No projects loaded yet. Click Refresh Projects to load."}
               </p>
             </div>
           )}
@@ -188,13 +189,7 @@ export function ProjectsList({
                 </h3>
                 <div className="relative space-y-4 before:absolute before:left-[19px] before:top-2 before:h-[calc(100%-16px)] before:w-px before:bg-white/10 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                   {isLoadingHistory ? (
-                    <div className="flex items-center gap-3 pl-10 text-[10px] font-bold uppercase tracking-widest text-muted">
-                      <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      Syncing on-chain events...
-                    </div>
+                    <ListSkeleton count={4} />
                   ) : history.length > 0 ? (
                     history.map((item) => (
                       <div key={item.id} className="relative pl-10 group">

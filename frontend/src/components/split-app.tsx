@@ -407,19 +407,41 @@ export function SplitApp() {
     }
   }
 
+  function patchProjectInAllViews(projectId: string, patch: Partial<SplitProject>) {
+    setFetchedProject((prev) => (prev?.projectId === projectId ? { ...prev, ...patch } : prev));
+    setProjectsList((prev) =>
+      prev.map((p) => (p.projectId === projectId ? { ...p, ...patch } : p)),
+    );
+    setDashboardData((prev) =>
+      prev.map((p) => (p.projectId === projectId ? { ...p, ...patch } : p)),
+    );
+  }
+
   async function onUpdateMetadata() {
     if (!fetchedProject || !wallet.address) return;
     if (!editTitle.trim()) {
       notify.error("Title is required.");
       return;
     }
+    const projectId = fetchedProject.projectId;
+    const previousSnapshot = {
+      title: fetchedProject.title,
+      projectType: fetchedProject.projectType,
+    };
+    const nextTitle = editTitle.trim();
+    const nextProjectType = editProjectType.trim();
     setIsUpdatingMetadata(true);
+    patchProjectInAllViews(projectId, {
+      title: nextTitle,
+      projectType: nextProjectType,
+    });
+    setIsEditingMetadata(false);
     try {
       const buildResponse = await buildUpdateMetadataXdr(
-        fetchedProject.projectId,
+        projectId,
         wallet.address,
-        editTitle.trim(),
-        editProjectType.trim(),
+        nextTitle,
+        nextProjectType,
       );
       const signedTxXdr = await signWithWallet(
         buildResponse.xdr,
@@ -431,9 +453,10 @@ export function SplitApp() {
       if (submitResponse.status === "ERROR")
         throw new Error(submitResponse.errorResult?.toString() ?? "Transaction failed.");
       notify.success("Project metadata updated successfully.");
-      setIsEditingMetadata(false);
-      await onFetchProject();
+      void onFetchProject();
     } catch (error) {
+      patchProjectInAllViews(projectId, previousSnapshot);
+      setIsEditingMetadata(true);
       notify.error(error instanceof Error ? error.message : "Failed to update metadata.");
     } finally {
       setIsUpdatingMetadata(false);

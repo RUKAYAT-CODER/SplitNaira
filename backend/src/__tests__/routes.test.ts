@@ -186,7 +186,24 @@ describe("Route Integration Tests", () => {
     });
   });
 
+  describe("GET /health/startup", () => {
+    it("should return 503 while startup is incomplete", async () => {
+      const res = await request(app).get("/health/startup");
+      expect(res.status).toBe(503);
+      expect(res.body.status).toBe("starting");
+    });
+  });
+
   describe("Error Handling & Request ID", () => {
+    it("should propagate x-correlation-id in validation error responses", async () => {
+      const res = await request(app)
+        .get("/splits/invalid-project-id!!!")
+        .set("x-correlation-id", "corr-test-id");
+
+      expect(res.status).toBe(400);
+      expect(res.body.requestId).toBe("corr-test-id");
+      expect(res.headers["x-correlation-id"]).toBe("corr-test-id");
+    });
     it("should propagate request-id in validation error responses", async () => {
       const res = await request(app)
         .get("/splits/invalid-project-id!!!")

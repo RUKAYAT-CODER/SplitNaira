@@ -1,7 +1,9 @@
 name: Backend Deploy
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -9,6 +11,10 @@ on:
         description: "Deployment target override (defaults to repo variable BACKEND_DEPLOY_TARGET)"
         required: false
         default: ""
+      deploy_environment:
+        description: "Target deployment environment: staging or production"
+        required: false
+        default: "staging"
 
 permissions:
   contents: read
@@ -19,6 +25,7 @@ concurrency:
 
 jobs:
   verify-backend:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -31,13 +38,37 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run lint
       - run: npm run build
+      - run: npm run test
+
+  validate-deploy-config:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_TARGET_INPUT: ${{ github.event.inputs.deploy_target }}
+      DEPLOY_ENV_INPUT: ${{ github.event.inputs.deploy_environment }}
+      BACKEND_DEPLOY_TARGET: ${{ vars.BACKEND_DEPLOY_TARGET }}
+      RENDER_BACKEND_DEPLOY_HOOK_URL: ${{ secrets.RENDER_BACKEND_DEPLOY_HOOK_URL }}
+      MAINNET_CONTRACT_ID: ${{ secrets.MAINNET_CONTRACT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - run: npm ci --no-audit --no-fund
+      - name: Validate deploy configuration
+        run: npx tsx backend/src/utils/deploy-config.ts validate "$DEPLOY_TARGET_INPUT" "$DEPLOY_ENV_INPUT"
 
   deploy-backend:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    needs: verify-backend
+    needs:
+      - verify-backend
+      - validate-deploy-config
+    environment: ${{ github.event.inputs.deploy_environment || 'staging' }}
     env:
       DEPLOY_TARGET_INPUT: ${{ github.event.inputs.deploy_target }}
       DEPLOY_TARGET_REPO: ${{ vars.BACKEND_DEPLOY_TARGET }}
+      DEPLOY_ENV_INPUT: ${{ github.event.inputs.deploy_environment }}
     steps:
       - name: Resolve deploy target
         id: target
@@ -70,4 +101,23 @@ jobs:
           echo "Unsupported deploy target: ${{ steps.target.outputs.target }}"
           echo "Supported targets: render"
           exit 1
+
+  post-deploy-smoke:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    needs: deploy-backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - name: Post-deploy readiness smoke check
+        if: vars.BACKEND_SMOKE_URL != ''
+        env:
+          BACKEND_URL: ${{ vars.BACKEND_SMOKE_URL }}
+          SMOKE_TIMEOUT_MS: 300000
+        run: node scripts/deploy-smoke-check.mjs
+      - name: Skip smoke check when BACKEND_SMOKE_URL is unset
+        if: vars.BACKEND_SMOKE_URL == ''
+        run: echo "BACKEND_SMOKE_URL not configured — skipping post-deploy smoke check."
 

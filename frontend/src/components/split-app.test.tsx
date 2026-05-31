@@ -677,3 +677,84 @@ describe("SplitApp async state handling", () => {
     expect(await screen.findByText(/Could not load projects\. Retry refresh\./i)).toBeTruthy();
   });
 });
+
+describe("SplitApp UX — skeleton loaders (#322)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.mockUseWallet.mockReturnValue({
+      wallet: { connected: true, address: "GOWNER123", network: "testnet" },
+      connect: vi.fn(),
+      refresh: vi.fn()
+    });
+    mocks.mockGetWalletState.mockResolvedValue({
+      connected: true,
+      address: "GOWNER123",
+      network: "testnet"
+    });
+    mocks.mockGetClaimable.mockResolvedValue({ claimed: "0", distributionRound: 0 });
+    mocks.mockGetProjectHistory.mockResolvedValue({ items: [], nextCursor: null });
+    mocks.mockGetTokenAllowlist.mockResolvedValue(baseAllowlist);
+    mocks.mockGetSplit.mockResolvedValue(baseProject);
+  });
+
+  it("shows project card skeletons while the projects list is loading", async () => {
+    let resolveList: (value: unknown) => void = () => {};
+    mocks.mockGetAllSplits.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveList = resolve;
+        }),
+    );
+
+    const user = userEvent.setup();
+    renderSplitApp();
+    await user.click(screen.getByRole("button", { name: "Projects" }));
+
+    expect(document.querySelectorAll(".glass-card.rounded-\\[2\\.5rem\\].p-8.animate-pulse").length).toBeGreaterThan(0);
+
+    resolveList([baseProject]);
+    expect(await screen.findByText("Project One")).toBeTruthy();
+  });
+});
+
+describe("SplitApp UX — optimistic metadata (#322)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.mockUseWallet.mockReturnValue({
+      wallet: { connected: true, address: "GOWNER123", network: "testnet" },
+      connect: vi.fn(),
+      refresh: vi.fn()
+    });
+    mocks.mockGetWalletState.mockResolvedValue({
+      connected: true,
+      address: "GOWNER123",
+      network: "testnet"
+    });
+    mocks.mockGetAllSplits.mockResolvedValue([]);
+    mocks.mockGetClaimable.mockResolvedValue({ claimed: "0", distributionRound: 0 });
+    mocks.mockGetProjectHistory.mockResolvedValue({ items: [], nextCursor: null });
+    mocks.mockGetTokenAllowlist.mockResolvedValue(baseAllowlist);
+    mocks.mockGetSplit.mockResolvedValue(baseProject);
+    mocks.mockSignWithWallet.mockResolvedValue("SIGNED_XDR");
+    mocks.mockSendTransaction.mockResolvedValue({ status: "PENDING", hash: "HASH_META" });
+    mocks.mockPollTransaction.mockResolvedValue({ status: "SUCCESS" });
+  });
+
+  it("updates title optimistically after metadata save", async () => {
+    const { buildUpdateMetadataXdr } = await import("@/lib/api");
+    vi.mocked(buildUpdateMetadataXdr).mockResolvedValue({
+      xdr: "META_XDR",
+      metadata: { networkPassphrase: "TESTNET", contractId: "CID" }
+    });
+
+    const user = await loadProject();
+    await user.click(screen.getByRole("button", { name: "Edit Metadata" }));
+
+    const titleInput = screen.getByDisplayValue("Project One");
+    await user.clear(titleInput);
+    await user.type(titleInput, "Renamed Project");
+    await user.click(screen.getByRole("button", { name: "Save Changes" }));
+
+    expect(await screen.findByText("Renamed Project")).toBeTruthy();
+  });
+});

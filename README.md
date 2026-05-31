@@ -105,6 +105,59 @@ splitNaira/
 └── demo/          # Static prototype
 ```
 
+## Operational Health Checks
+
+| Endpoint | Purpose |
+|-----------|----------|
+| /health/live | Liveness Probe |
+| /health/ready | Readiness Probe |
+| /health/startup | Startup Probe |
+
+Used for Kubernetes, Docker Swarm and cloud deployment monitoring.
+
+## Observability
+
+### Metrics
+
+GET /metrics
+
+### Request Tracing
+
+All requests include:
+
+X-Correlation-Id
+
+### Logging
+
+Structured JSON logs are emitted for production monitoring.
+
+## Mainnet Readiness
+
+Endpoint:
+
+GET /ops/mainnet-readiness
+
+Purpose:
+
+- Deployment validation
+- Launch verification
+- Configuration auditing
+
+## Developer Setup
+
+npm install
+npm run verify:env
+npm run dev
+
+## Code Quality
+
+npm run lint
+npm run test
+
+## Bundle Analysis
+
+npm run analyze
+
 ## Documentation
 
 - [Deployment Runbook](./docs/deployment.md)
@@ -120,6 +173,13 @@ splitNaira/
 ```bash
 npm run verify:data-integrity   # contract interface + generated types in sync
 ```
+
+## Mainnet launch readiness
+
+- `backend-deploy.yml` now validates production deploy configuration and required secrets before triggering Render.
+- `mainnet-deploy.yml` provides an explicit manual production release gate for human-reviewed mainnet launch.
+- CI pipelines use concurrency groups to cancel stale runs and keep mainline validation fast.
+- Operational rollback guidance is documented in `docs/runbooks/ci-data-integrity.md` and `docs/deployment.md`.
 
 ## License
 

@@ -7,6 +7,17 @@ export const healthRouter = Router();
 
 const SERVICE_VERSION = process.env.npm_package_version ?? "unknown";
 
+let startupComplete = false;
+
+/** Mark startup complete after DB and background services are initialised. */
+export function markStartupComplete(): void {
+  startupComplete = true;
+}
+
+export function isStartupComplete(): boolean {
+  return startupComplete;
+}
+
 /**
  * Health endpoint - indicates service is running
  */
@@ -24,6 +35,18 @@ healthRouter.get("/", (_req, res) => {
  */
 healthRouter.get("/live", (_req, res) => {
   res.json({ status: "ok" });
+});
+
+/**
+ * Startup endpoint - indicates initialisation (DB, listeners) is complete.
+ * Used by orchestrators that distinguish startup from liveness/readiness.
+ */
+healthRouter.get("/startup", (_req, res) => {
+  if (!startupComplete) {
+    res.status(503).json({ status: "starting" });
+    return;
+  }
+  res.json({ status: "started" });
 });
 
 /**

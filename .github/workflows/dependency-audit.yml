@@ -20,7 +20,5 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: Audit backend dependencies
         run: npm audit --workspace=backend --audit-level=high
-        continue-on-error: true
       - name: Audit frontend dependencies
         run: npm audit --workspace=frontend --audit-level=high
-        continue-on-error: true

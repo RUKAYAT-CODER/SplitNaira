@@ -6,7 +6,7 @@ import { rpc, Transaction, type FeeBumpTransaction } from "@stellar/stellar-sdk"
 import { formatContractFailure } from "./contract-errors";
 import { getEnv } from "./env";
 
-const DEFAULT_POLL_ATTEMPTS = 90;
+const DEFAULT_POLL_ATTEMPTS = Number(getEnv().NEXT_PUBLIC_TX_POLL_TIMEOUT) || 90;
 
 /** Matches Soroban RPC `getTransaction` status strings (see @stellar/stellar-sdk rpc.Api.GetTransactionStatus). */
 const GET_TX = {
@@ -95,20 +95,11 @@ export async function submitSorobanTransactionAndPoll(
   });
 
   if (polled.status === GET_TX.NOT_FOUND) {
-    const err = new Error(
+    const error = new Error(
       "Transaction was submitted but not confirmed in time. Check the explorer for the latest status."
     );
-    Sentry.captureException(err, {
-      tags: {
-        section: "soroban-transaction",
-        action: "poll",
-        status: polled.status,
-      },
-      extra: {
-        txHash: hash,
-      }
-    });
-    throw err;
+    error.name = "TimeoutError";
+    throw error;
   }
 
   if (polled.status === GET_TX.FAILED) {

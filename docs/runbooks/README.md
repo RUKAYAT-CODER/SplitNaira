@@ -8,5 +8,7 @@ Deployment-focused runbooks for the Stellar Wave release program. Each document 
 | [CI/CD data integrity](./ci-data-integrity.md) | Data Integrity — CI/CD | #437 |
 | [Ops deployment & rollback](./ops-deployment-rollback.md) | Data Integrity — ops | #438 |
 | [Frontend release operations](./frontend-release-ops.md) | Release Operations — frontend | #439 |
+| [Observability](./observability.md) | CI/CD — observability | #407 |
+| [CI/CD security](./cicd-security.md) | CI/CD — security hardening | #402 |
 
-**Related:** [End-to-end deployment](../deployment.md) · [Contract release & upgrade](../contract-release-and-upgrade-runbook.md) · [Release readiness checklist](../release-readiness-checklist.md)
+**Related:** [End-to-end deployment](../deployment.md) · [Contract release & upgrade](../contract-release-and-upgrade-runbook.md) · [Release readiness checklist](../release-readiness-checklist.md) · [SECURITY.md](../../SECURITY.md)

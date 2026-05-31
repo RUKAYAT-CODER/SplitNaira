@@ -5,7 +5,8 @@ import helmet from "helmet";
 import morgan from "morgan";
 import dotenv from "dotenv";
 import swaggerUi from "swagger-ui-express";
-import { healthRouter } from "./routes/health.js";
+import { healthRouter, markStartupComplete } from "./routes/health.js";
+import { isMetricsEnabled, metricsRouter } from "./routes/metrics.js";
 import { splitsRouter } from "./routes/splits.js";
 import { docsRouter } from "./routes/docs.js";
 import { usersRouter } from "./routes/users.js";
@@ -30,7 +31,25 @@ const corsOrigins = process.env.CORS_ORIGIN
 
 const corsOrigin = corsOrigins.length > 0 ? corsOrigins : false;
 
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:"],
+      connectSrc: ["'self'"]
+    }
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  },
+  frameguard: { action: 'deny' },
+  xssFilter: true,
+  noSniff: true,
+}));
 app.use(cors({ origin: corsOrigin }));
 app.use(express.json({ limit: "1mb" }));
 app.use(requestIdMiddleware);
@@ -87,6 +106,9 @@ app.get("/", (_req, res) => {
 });
 
 app.use("/health", healthRouter);
+if (isMetricsEnabled()) {
+  app.use("/metrics", metricsRouter);
+}
 app.use("/splits", splitsRouter);
 app.use("/docs", docsRouter);
 app.use("/users", usersRouter);
@@ -169,6 +191,7 @@ if (process.env.NODE_ENV !== "test") {
 
       await initDatabase();
       await startEventListenerService();
+      markStartupComplete();
 
       const port = Number(process.env.PORT ?? 3001);
       const server = app.listen(port, () => {
