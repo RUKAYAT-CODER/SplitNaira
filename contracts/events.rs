@@ -241,3 +241,27 @@ impl DistributionsUnpaused {
     }
 }
 
+
+
+/// Emitted when a collaborator self-service claims their proportional share.
+///
+/// Topics:  ["collaborator_claimed", project_id]
+/// Data:    (claimer address, amount in stroops)
+#[derive(Clone, Debug)]
+pub struct CollaboratorClaimed {
+    pub project_id: Symbol,
+    pub claimer: Address,
+    pub amount: i128,
+}
+
+impl CollaboratorClaimed {
+    pub fn publish(&self, env: &Env) {
+        env.events().publish(
+            (
+                Symbol::new(env, "collaborator_claimed"),
+                self.project_id.clone(),
+            ),
+            (self.claimer.clone(), self.amount),
+        );
+    }
+}
