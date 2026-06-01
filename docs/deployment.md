@@ -58,6 +58,7 @@ rustup target add wasm32v1-none
 
 Copy `.env.example` to `.env` (or set these as secrets/config vars in your hosting platform) before deploying each service.
 See [docs/environments.md](./environments.md) for the full matrix and per-environment examples.
+See [docs/secrets.md](./secrets.md) for authoritative secret handling, rotation procedures, and the rule to never commit `.env` files.
 
 ### Backend (`backend/.env.example`)
 
