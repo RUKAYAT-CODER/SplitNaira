@@ -36,6 +36,8 @@ Set these in GitHub repository settings under **Settings -> Secrets and variable
 - `MAINNET_CONTRACT_ID`
   - Value: Mainnet Soroban contract ID to validate production deploy readiness
 
+See [docs/secrets.md](./secrets.md) for full secret ownership, rotation procedures, and safe host-secret storage guidance.
+
 ## Optional Variables
 
 Set these in **Settings -> Secrets and variables -> Actions -> Variables**:
