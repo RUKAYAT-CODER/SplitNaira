@@ -199,22 +199,44 @@ impl CollaboratorsUpdated {
     }
 }
 
-/// Emitted when a single collaborator self-claims their share via `claim`.
+/// Emitted when distributions are paused by contract admin.
 ///
-/// Topics:  ["collaborator_claimed", project_id]
-/// Data:    (claimer address, amount in stroops)
+/// Topics:  ["distributions_paused", admin]
+/// Data:    none
 #[derive(Clone, Debug)]
-pub struct CollaboratorClaimed {
-    pub project_id: Symbol,
-    pub claimer: Address,
-    pub amount: i128,
+pub struct DistributionsPaused {
+    pub admin: Address,
 }
 
-impl CollaboratorClaimed {
+impl DistributionsPaused {
     pub fn publish(&self, env: &Env) {
         env.events().publish(
-            (Symbol::new(env, "collaborator_claimed"), self.project_id.clone()),
-            (self.claimer.clone(), self.amount),
+            (
+                Symbol::new(env, "distributions_paused"),
+                self.admin.clone(),
+            ),
+            (),
+        );
+    }
+}
+
+/// Emitted when distributions are unpaused by contract admin.
+///
+/// Topics:  ["distributions_unpaused", admin]
+/// Data:    none
+#[derive(Clone, Debug)]
+pub struct DistributionsUnpaused {
+    pub admin: Address,
+}
+
+impl DistributionsUnpaused {
+    pub fn publish(&self, env: &Env) {
+        env.events().publish(
+            (
+                Symbol::new(env, "distributions_unpaused"),
+                self.admin.clone(),
+            ),
+            (),
         );
     }
 }
