@@ -84,7 +84,7 @@ After a comprehensive audit of the current codebase, the following implementatio
 - **Files**: `backend/src/middleware/rate-limit.ts`
 
 **9. Observability**
-- `/metrics` endpoint for Prometheus
+- `/metrics` endpoint for Prometheus with request volume, latency, and in-flight request gauges
 - Request correlation IDs (X-Correlation-Id)
 - Structured logging with requestId
 - Sentry integration for error tracking

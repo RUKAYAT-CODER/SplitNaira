@@ -24,6 +24,10 @@ Configure Render/orchestrator probes:
 Exposed series:
 
 - `splitnaira_validation_failures_total` — response schema validation failures
+- `splitnaira_http_requests_total{method,route,status}` — total HTTP requests by route and status
+- `splitnaira_http_request_duration_seconds_sum{method,route}` — cumulative request latency in seconds
+- `splitnaira_http_request_duration_seconds_count{method,route}` — number of latency samples per route
+- `splitnaira_http_requests_inflight` — current in-flight HTTP requests
 - `splitnaira_process_uptime_seconds`
 - `splitnaira_process_heap_bytes`
 - `splitnaira_info{version="..."}`
