@@ -2869,6 +2869,35 @@ fn test_claim_reduces_project_balance() {
 }
 
 #[test]
+fn test_claim_increments_total_distributed() {
+    let (env, _admin, token) = create_test_env();
+    let contract_id = env.register_contract(None, SplitNairaContract);
+    let client = SplitNairaContractClient::new(&env, &contract_id);
+
+    let owner = Address::generate(&env);
+    let alice = Address::generate(&env);
+    let bob = Address::generate(&env);
+    let collabs = make_collaborators(
+        &env,
+        Vec::from_slice(&env, &[alice.clone(), bob.clone()]),
+        Vec::from_slice(&env, &[6000u32, 4000u32]),
+    );
+    let project_id = Symbol::new(&env, "claim_total_distributed");
+    client.create_project(
+        &owner, &project_id,
+        &String::from_str(&env, "Total Distributed Test"),
+        &String::from_str(&env, "music"),
+        &token, &collabs,
+    );
+
+    deposit_to_project(&env, &client, &token, &project_id, &owner, 10_000_000);
+    client.claim(&project_id, &alice);
+
+    let project = client.get_project(&project_id).unwrap();
+    assert_eq!(project.total_distributed, 6_000_000, "total_distributed must track claimed payouts");
+}
+
+#[test]
 fn test_claim_updates_claimed_ledger() {
     let (env, _admin, token) = create_test_env();
     let contract_id = env.register_contract(None, SplitNairaContract);

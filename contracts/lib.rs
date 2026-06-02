@@ -701,6 +701,14 @@ impl SplitNairaContract {
             .persistent()
             .set(&DataKey::ProjectBalance(project_id.clone()), &(balance - amount));
 
+        // Record the payout in the project distribution totals.
+        let mut updated_project = project.clone();
+        updated_project.total_distributed += amount;
+        env.storage()
+            .persistent()
+            .set(&DataKey::Project(project_id.clone()), &updated_project);
+        Self::bump_project_ttl(&env, &project_id);
+
         // Update per-address claimed ledger
         let prev_claimed: i128 = env
             .storage()
@@ -712,7 +720,6 @@ impl SplitNairaContract {
             &(prev_claimed + amount),
         );
         Self::bump_claimed_ttl(&env, &project_id, &claimer);
-        Self::bump_project_ttl(&env, &project_id);
 
         // Transfer tokens to claimer
         let token_client = token::Client::new(&env, &project.token);

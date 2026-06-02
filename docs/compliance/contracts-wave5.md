@@ -1,28 +1,41 @@
 # Contracts Compliance - Wave 5
 
 ## Objective
-Deliver production-grade Soroban smart contract compliance improvements for SplitNaira.
+Deliver production-grade Soroban smart contract compliance improvements for SplitNaira, with a focus on Wallet & Payments.
 
 ## Implementation Plan
 
-### 1. Error Coverage
-- All contract entry points return typed errors via the Error enum in errors.rs
-- No unwrap() or expect() in production paths
+### 1. Wallet & Payments Contract Surface
+- `deposit` validates token transfers, rejects invalid amounts, and publishes `deposit_received`
+- `distribute` preserves exact payout accounting, handles integer rounding safely, and emits `payment_sent`
+- `claim` supports pull-based collaborator self-service claims while updating claimed ledgers and total distributed amounts
+- `pause_distributions` and `unpause_distributions` provide an emergency stop for payout flows
+- `withdraw_unallocated` enables admin recovery of stray direct-token transfers without touching project-accounted balances
 
-### 2. Event Emission
-- All state-changing operations emit events defined in events.rs
-- Events include: distribution_complete, payment_sent, project_locked, collaborators_updated
+### 2. Allowlist & Recovery
+- Allowlist remains optional until token approval is configured
+- Once configured, `allow_token` / `disallow_token` enforce token eligibility for project creation
+- `get_unallocated_balance` computes contract holdings minus account-level project balances
+- `withdraw_unallocated` rejects contract-self transfers and prevents over-withdrawal
 
 ### 3. Access Control
-- Admin-only functions check caller against stored admin address
-- Project owner functions verify owner == env.invoker()
+- Admin-only paths require configured admin auth
+- Project owner operations require explicit owner authorization
+- Collaborator claim flows validate that the caller is registered on the project
 
 ### 4. Test Coverage
-- tests.rs covers happy path and error paths for all public entry points
-- Edge cases: zero-amount deposit, duplicate collaborator, basis points != 10000
+- `tests.rs` exercises wallet/payment workflows and edge cases
+- Coverage includes: deposit, distribution, batch distribution, paused state, claim semantics, claimed ledger updates, unallocated recovery, allowlist rules, and owner/admin gating
 
 ## Rollback Notes
-Contract changes require redeployment. Previous contract ID remains valid until admin migrates.
+Contract releases require a new deployed contract ID when code changes. Existing stable contract IDs remain valid and can be restored in frontend/backend configuration.
 
 ## Operational Impact
-No breaking ABI changes in this wave. Existing integrations unaffected.
+- Improves Wallet & Payments safety for production rollout
+- Adds explicit recovery controls for stray tokens
+- Preserves payout accounting when self-service claims occur
+
+## Release Safety
+- No ABI-breaking changes are introduced by this wave
+- Existing flows remain compatible with current frontend/backends until the new contract ID is switched
+- Backend admin freeze (`PAYMENTS_ADMIN_WRITE_ENABLED=false`) supports rollback-safe operations during deployment and recovery
