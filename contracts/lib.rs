@@ -1,7 +1,7 @@
-﻿#![no_std]
+#![no_std]
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, token, Address, Env, Map, String, Symbol, Vec,
+    contract, contractimpl, contracttype, panic_with_error, token, Address, Env, Map, String, Symbol, Vec,
 };
 
 /// Number of project IDs stored per bucket to avoid loading the entire index
@@ -27,6 +27,7 @@ use events::{
     TokenAllowed,
     TokenDisallowed,
     UnallocatedWithdrawn,
+    SplitsUpdatedWithPendingBalance,
 };
 #[cfg(test)]
 mod tests;
@@ -161,16 +162,14 @@ impl SplitNairaContract {
     /// If admin is not set yet, `admin` must authorize this call.
     /// If admin is already set, the current admin must authorize this call.
     pub fn set_admin(env: Env, admin: Address) -> Result<(), SplitError> {
-        admin.require_auth();
-
         if let Some(current_admin) = env
             .storage()
             .persistent()
             .get::<DataKey, Address>(&DataKey::Admin)
         {
-            if current_admin != admin {
-                return Err(SplitError::Unauthorized);
-            }
+            current_admin.require_auth();
+        } else {
+            admin.require_auth();
         }
 
         env.storage().persistent().set(&DataKey::Admin, &admin);
@@ -221,7 +220,7 @@ impl SplitNairaContract {
                 .persistent()
                 .get::<DataKey, Vec<Address>>(&DataKey::AllowedTokenList)
                 .unwrap_or(Vec::new(&env));
-            allowed_tokens.push_back(token);
+            allowed_tokens.push_back(token.clone());
             env.storage()
                 .persistent()
                 .set(&DataKey::AllowedTokenList, &allowed_tokens);
@@ -690,11 +689,11 @@ impl SplitNairaContract {
         let mut results = Vec::new(&env);
         for project_id in project_ids.iter() {
 
-            if is_paused(&env) {
+            if Self::is_distributions_paused(env.clone()) {
                 panic_with_error!(&env, SplitError::DistributionsPaused);
             }
             
-            match Self::distribute(env.clone(), project_id) {
+            match Self::distribute(env.clone(), project_id.clone()) {
                 Ok(_) => results.push_back((project_id, None)),
                 Err(SplitError::DistributionsPaused) => {
                     return Err(SplitError::DistributionsPaused)
