@@ -21,7 +21,9 @@ use events::{
     PaymentSent,
     ProjectCreated,
     ProjectLocked,
-  CollaboratorClaimed,
+    CollaboratorClaimed,
+    TokenAllowed,
+    TokenDisallowed,
     UnallocatedWithdrawn,
 };
 #[cfg(test)]
@@ -139,14 +141,16 @@ impl SplitNairaContract {
     /// If admin is not set yet, `admin` must authorize this call.
     /// If admin is already set, the current admin must authorize this call.
     pub fn set_admin(env: Env, admin: Address) -> Result<(), SplitError> {
+        admin.require_auth();
+
         if let Some(current_admin) = env
             .storage()
             .persistent()
             .get::<DataKey, Address>(&DataKey::Admin)
         {
-            current_admin.require_auth();
-        } else {
-            admin.require_auth();
+            if current_admin != admin {
+                return Err(SplitError::Unauthorized);
+            }
         }
 
         env.storage().persistent().set(&DataKey::Admin, &admin);
@@ -206,6 +210,12 @@ impl SplitNairaContract {
                 .set(&DataKey::AllowedTokenCount, &count.saturating_add(1));
         }
 
+        TokenAllowed {
+            token: token.clone(),
+            admin: admin.clone(),
+        }
+        .publish(&env);
+
         Ok(())
     }
 
@@ -242,6 +252,12 @@ impl SplitNairaContract {
                 .persistent()
                 .set(&DataKey::AllowedTokenCount, &count.saturating_sub(1));
         }
+
+        TokenDisallowed {
+            token: token.clone(),
+            admin: admin.clone(),
+        }
+        .publish(&env);
 
         Ok(())
     }

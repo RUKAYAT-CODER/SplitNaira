@@ -265,3 +265,33 @@ impl CollaboratorClaimed {
         );
     }
 }
+
+#[derive(Clone, Debug)]
+pub struct TokenAllowed {
+    pub token: Address,
+    pub admin: Address,
+}
+
+impl TokenAllowed {
+    pub fn publish(&self, env: &Env) {
+        env.events().publish(
+            (Symbol::new(env, "token_allowed"), self.token.clone()),
+            self.admin.clone(),
+        );
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct TokenDisallowed {
+    pub token: Address,
+    pub admin: Address,
+}
+
+impl TokenDisallowed {
+    pub fn publish(&self, env: &Env) {
+        env.events().publish(
+            (Symbol::new(env, "token_disallowed"), self.token.clone()),
+            self.admin.clone(),
+        );
+    }
+}
