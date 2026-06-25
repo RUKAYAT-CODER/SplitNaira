@@ -252,16 +252,14 @@ pub struct CollaboratorClaimed {
     pub project_id: Symbol,
     pub claimer: Address,
     pub amount: i128,
+    pub distribution_round: u32,
 }
 
 impl CollaboratorClaimed {
     pub fn publish(&self, env: &Env) {
         env.events().publish(
-            (
-                Symbol::new(env, "collaborator_claimed"),
-                self.project_id.clone(),
-            ),
-            (self.claimer.clone(), self.amount),
+            (Symbol::new(env, "collaborator_claimed"), self.project_id.clone()),
+            (self.claimer.clone(), self.amount, self.distribution_round),
         );
     }
 }

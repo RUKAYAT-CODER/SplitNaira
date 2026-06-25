@@ -3180,3 +3180,35 @@ fn test_claim_emits_collaborator_claimed_event() {
         "claim must emit at least one event"
     );
 }
+
+
+#[test]
+fn test_batch_distribute_fails_when_paused() {
+    let (env, _token_admin, token) = create_test_env();
+    let contract_id = env.register_contract(None, SplitNairaContract);
+    let client = SplitNairaContractClient::new(&env, &contract_id);
+
+    let owner = Address::generate(&env);
+    let funder = Address::generate(&env);
+    let alice = Address::generate(&env);
+    let bob = Address::generate(&env);
+
+    let collabs = make_collaborators(
+        &env,
+        Vec::from_slice(&env, &[alice.clone(), bob.clone()]),
+        Vec::from_slice(&env, &[5000u32, 5000u32]),
+    );
+
+    let project_a = Symbol::new(&env, "project_a");
+    client.create_project(&owner, &project_a, &String::from_str(&env, "Project A"), &String::from_str(&env, "music"), &token, &collabs);
+    deposit_to_project(&env, &client, &token, &project_a, &funder, 100_0000000i128);
+
+    let admin = Address::generate(&env);
+    client.set_admin(&admin);
+    client.pause_distributions(&admin);
+
+    let batch = Vec::from_slice(&env, &[project_a.clone()]);
+    let result = client.try_batch_distribute(&batch);
+    
+    assert_eq!(result, Err(Ok(SplitError::DistributionsPaused)));
+}
