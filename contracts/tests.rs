@@ -1,11 +1,16 @@
 #![cfg(test)]
+#![allow(
+    clippy::inconsistent_digit_grouping,
+    clippy::cloned_ref_to_slice_refs,
+    clippy::duplicated_attributes
+)]
 
 extern crate std;
 
 use super::*;
 use soroban_sdk::{
     testutils::{Address as _, Events as _},
-    token, vec, Address, Env, IntoVal, String, Symbol, Vec,
+    token, vec, Address, Env, IntoVal, String, Symbol, TryFromVal, Vec,
 };
 
 // ============================================================
@@ -83,7 +88,7 @@ fn test_create_project_success() {
         .get_project(&Symbol::new(&env, "afrobeats_vol3"))
         .unwrap();
     assert_eq!(project.collaborators.len(), 2);
-    assert_eq!(project.locked, false);
+    assert!(!project.locked);
     assert_eq!(project.total_distributed, 0);
     assert_eq!(project.distribution_round, 0);
     assert_eq!(client.get_balance(&Symbol::new(&env, "afrobeats_vol3")), 0);
@@ -327,7 +332,7 @@ fn test_allowlist_management_requires_admin() {
     assert_eq!(unauthorized_result, Err(Ok(SplitError::Unauthorized)));
 
     client.allow_token(&admin, &token);
-    assert_eq!(client.is_token_allowed(&token), true);
+    assert!(client.is_token_allowed(&token));
     assert_eq!(client.get_allowed_token_count(), 1);
 }
 
@@ -347,7 +352,7 @@ fn test_allowlist_turns_off_after_last_token_is_removed() {
 
     client.disallow_token(&contract_admin, &token_a);
     assert_eq!(client.get_allowed_token_count(), 0);
-    assert_eq!(client.is_token_allowed(&token_a), false);
+    assert!(!client.is_token_allowed(&token_a));
 
     // Allowlist is now off (empty), so non-allowlisted token should work.
     let owner = Address::generate(&env);
@@ -481,7 +486,7 @@ fn test_update_collaborators_success_before_lock() {
     let project = client
         .get_project(&Symbol::new(&env, "editable_split"))
         .unwrap();
-    assert_eq!(project.locked, false);
+    assert!(!project.locked);
     assert_eq!(project.collaborators.len(), 3);
     assert_eq!(project.collaborators.get(0u32).unwrap().address, alice);
     assert_eq!(
@@ -576,14 +581,20 @@ fn test_update_collaborators_emits_event() {
     client.update_collaborators(&project_id, &owner, &updated_collabs);
 
     let events = env.events().all();
-    let last_event = events.last().unwrap();
+    let last_event = events.last().unwrap().clone();
     assert_eq!(last_event.0, contract_id);
-    let event_type: Symbol = last_event.1.get(0).unwrap().into_val(&env);
-    assert_eq!(event_type, Symbol::new(&env, "collaborators_updated"));
-    let event_project_id: Symbol = last_event.1.get(1).unwrap().into_val(&env);
-    assert_eq!(event_project_id, project_id);
-    let event_data: Symbol = last_event.2.clone().into_val(&env);
-    assert_eq!(event_data, project_id);
+    assert_eq!(
+        Symbol::try_from_val(&env, &last_event.1.get(0).unwrap()).unwrap(),
+        Symbol::new(&env, "collaborators_updated")
+    );
+    assert_eq!(
+        Symbol::try_from_val(&env, &last_event.1.get(1).unwrap()).unwrap(),
+        project_id
+    );
+    assert_eq!(
+        Symbol::try_from_val(&env, &last_event.2).unwrap(),
+        project_id
+    );
 }
 
 #[test]
@@ -785,7 +796,7 @@ fn test_lock_project_success() {
     let project = client
         .get_project(&Symbol::new(&env, "nollywood_film"))
         .unwrap();
-    assert_eq!(project.locked, true);
+    assert!(project.locked);
 }
 
 // ============================================================
@@ -1840,15 +1851,15 @@ fn test_pause_and_unpause_distributions() {
     client.set_admin(&admin);
 
     // Initially not paused
-    assert_eq!(client.is_distributions_paused(), false);
+    assert!(!client.is_distributions_paused());
 
     // Pause
     client.pause_distributions(&admin);
-    assert_eq!(client.is_distributions_paused(), true);
+    assert!(client.is_distributions_paused());
 
     // Unpause
     client.unpause_distributions(&admin);
-    assert_eq!(client.is_distributions_paused(), false);
+    assert!(!client.is_distributions_paused());
 }
 
 #[test]
@@ -1868,22 +1879,27 @@ fn test_pause_and_unpause_emit_events() {
     let events = env.events().all();
     assert!(events.len() >= before_count + 2);
 
-    let pause_event = events.get(before_count).unwrap();
+    let pause_event = events.get(before_count).unwrap().clone();
     assert_eq!(pause_event.0, contract_id);
-    let pause_event_type: Symbol = pause_event.1.get(0).unwrap().into_val(&env);
-    assert_eq!(pause_event_type, Symbol::new(&env, "distributions_paused"));
-    let pause_admin: Address = pause_event.1.get(1).unwrap().into_val(&env);
-    assert_eq!(pause_admin, admin);
-
-    let unpause_event = events.get(before_count + 1).unwrap();
-    assert_eq!(unpause_event.0, contract_id);
-    let unpause_event_type: Symbol = unpause_event.1.get(0).unwrap().into_val(&env);
     assert_eq!(
-        unpause_event_type,
+        Symbol::try_from_val(&env, &pause_event.1.get(0).unwrap()).unwrap(),
+        Symbol::new(&env, "distributions_paused")
+    );
+    assert_eq!(
+        Address::try_from_val(&env, &pause_event.1.get(1).unwrap()).unwrap(),
+        admin
+    );
+
+    let unpause_event = events.get(before_count + 1).unwrap().clone();
+    assert_eq!(unpause_event.0, contract_id);
+    assert_eq!(
+        Symbol::try_from_val(&env, &unpause_event.1.get(0).unwrap()).unwrap(),
         Symbol::new(&env, "distributions_unpaused")
     );
-    let unpause_admin: Address = unpause_event.1.get(1).unwrap().into_val(&env);
-    assert_eq!(unpause_admin, admin);
+    assert_eq!(
+        Address::try_from_val(&env, &unpause_event.1.get(1).unwrap()).unwrap(),
+        admin
+    );
 }
 
 #[test]
@@ -1928,7 +1944,7 @@ fn test_distribute_fails_when_paused() {
 
     // Pause distributions
     client.pause_distributions(&admin);
-    assert_eq!(client.is_distributions_paused(), true);
+    assert!(client.is_distributions_paused());
 
     // Distribute should fail
     let result = client.try_distribute(&project_id);
@@ -1936,7 +1952,7 @@ fn test_distribute_fails_when_paused() {
 
     // Unpause
     client.unpause_distributions(&admin);
-    assert_eq!(client.is_distributions_paused(), false);
+    assert!(!client.is_distributions_paused());
 
     // Now distribute should succeed
     client.distribute(&project_id);
@@ -2406,7 +2422,7 @@ fn test_project_exists_returns_true_for_existing_project() {
         &collabs,
     );
 
-    assert_eq!(client.project_exists(&project_id), true);
+    assert!(client.project_exists(&project_id));
 }
 
 #[test]
@@ -2415,10 +2431,7 @@ fn test_project_exists_returns_false_for_missing_project() {
     let contract_id = env.register_contract(None, SplitNairaContract);
     let client = SplitNairaContractClient::new(&env, &contract_id);
 
-    assert_eq!(
-        client.project_exists(&Symbol::new(&env, "does_not_exist")),
-        false
-    );
+    assert!(!client.project_exists(&Symbol::new(&env, "does_not_exist")));
 }
 
 #[test]
@@ -2698,7 +2711,7 @@ fn test_lifecycle_pre_lock_edit_lock_post_lock_reject() {
     client.update_collaborators(&project_id, &owner, &updated_collabs);
     let after_edit = client.get_project(&project_id).unwrap();
     assert_eq!(after_edit.collaborators.len(), 3);
-    assert_eq!(after_edit.locked, false);
+    assert!(!after_edit.locked);
 
     // 3. Owner edits metadata while unlocked — allowed.
     client.update_project_metadata(
@@ -2717,7 +2730,7 @@ fn test_lifecycle_pre_lock_edit_lock_post_lock_reject() {
     // 4. Owner locks the project — allowed.
     client.lock_project(&project_id, &owner);
     let locked = client.get_project(&project_id).unwrap();
-    assert_eq!(locked.locked, true);
+    assert!(locked.locked);
 
     // 5. Owner tries to edit collaborators after lock — ProjectLocked.
     let post_lock_collabs = make_collaborators(
@@ -2776,7 +2789,7 @@ fn test_non_owner_cannot_lock_project() {
 
     // And the project must still be unlocked afterwards.
     let project = client.get_project(&project_id).unwrap();
-    assert_eq!(project.locked, false);
+    assert!(!project.locked);
 }
 
 /// Non-owner cannot update collaborators. Contract returns Unauthorized.
@@ -2862,8 +2875,8 @@ fn test_admin_rotation_pause_allowlist_and_recovery_preserve_project_invariants(
     // Enable allowlist and permit only token_allowed.
     client.allow_token(&admin_b, &token_allowed);
     assert_eq!(client.get_allowed_token_count(), 1);
-    assert_eq!(client.is_token_allowed(&token_allowed), true);
-    assert_eq!(client.is_token_allowed(&token_blocked), false);
+    assert!(client.is_token_allowed(&token_allowed));
+    assert!(!client.is_token_allowed(&token_blocked));
 
     let collabs = make_collaborators(
         &env,
@@ -2902,7 +2915,7 @@ fn test_admin_rotation_pause_allowlist_and_recovery_preserve_project_invariants(
     );
     let balance_before_pause = client.get_balance(&project_id);
     client.pause_distributions(&admin_b);
-    assert_eq!(client.is_distributions_paused(), true);
+    assert!(client.is_distributions_paused());
     assert_eq!(
         client.try_distribute(&project_id),
         Err(Ok(SplitError::DistributionsPaused))
@@ -2970,6 +2983,14 @@ fn test_transfer_ownership_success() {
 
     let project = client.get_project(&project_id).unwrap();
     assert_eq!(project.owner, new_owner);
+
+    // Old owner cannot perform owner-gated actions like locking the project
+    let result = client.try_lock_project(&project_id, &owner);
+    assert_eq!(result, Err(Ok(SplitError::Unauthorized)));
+
+    // New owner can successfully lock the project
+    client.lock_project(&project_id, &new_owner);
+    assert!(client.get_project(&project_id).unwrap().locked);
 }
 
 #[test]
@@ -3052,13 +3073,13 @@ fn test_transfer_ownership_works_on_locked_project() {
 
     // Lock the project first.
     client.lock_project(&project_id, &owner);
-    assert_eq!(client.get_project(&project_id).unwrap().locked, true);
+    assert!(client.get_project(&project_id).unwrap().locked);
 
     // Ownership transfer must succeed even for locked projects.
     client.transfer_project_ownership(&project_id, &owner, &new_owner);
     let project = client.get_project(&project_id).unwrap();
     assert_eq!(project.owner, new_owner);
-    assert_eq!(project.locked, true);
+    assert!(project.locked);
 }
 
 #[test]
@@ -3117,7 +3138,7 @@ fn test_new_owner_can_exercise_owner_gated_actions() {
 
     // New owner can lock.
     client.lock_project(&project_id, &new_owner);
-    assert_eq!(client.get_project(&project_id).unwrap().locked, true);
+    assert!(client.get_project(&project_id).unwrap().locked);
 
     // Old owner can no longer perform owner-gated actions.
     let old_owner_result = client.try_update_project_metadata(
