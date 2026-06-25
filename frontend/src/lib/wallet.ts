@@ -1,10 +1,7 @@
 "use client";
 
 import { StellarWalletsKit } from "@creit.tech/stellar-wallets-kit";
-import { FreighterModule } from "@creit.tech/stellar-wallets-kit/modules/freighter";
-import { AlbedoModule } from "@creit.tech/stellar-wallets-kit/modules/albedo";
-import { RabetModule } from "@creit.tech/stellar-wallets-kit/modules/rabet";
-import { xBullModule } from "@creit.tech/stellar-wallets-kit/modules/xbull";
+
 
 export { createSorobanRpcServer, submitSorobanTransactionAndPoll } from "./soroban-transaction";
 
