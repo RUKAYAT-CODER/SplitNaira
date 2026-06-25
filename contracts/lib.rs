@@ -611,7 +611,10 @@ impl SplitNairaContract {
     /// # Arguments
     /// * `env`         - Soroban environment
     /// * `project_ids` - Vector of project IDs to distribute
-    pub fn batch_distribute(env: Env, project_ids: Vec<Symbol>) -> Result<(), SplitError> {
+    pub fn batch_distribute(
+        env: Env,
+        project_ids: Vec<Symbol>,
+    ) -> Result<Vec<(Symbol, Option<SplitError>)>, SplitError> {
         let paused: bool = env
             .storage()
             .persistent()
@@ -621,17 +624,18 @@ impl SplitNairaContract {
             return Err(SplitError::DistributionsPaused);
         }
 
+        let mut results = Vec::new(&env);
         for project_id in project_ids.iter() {
             match Self::distribute(env.clone(), project_id) {
-                Ok(_) => {}
-                Err(SplitError::DistributionsPaused) => return Err(SplitError::DistributionsPaused),
-                Err(_) => {
-                    // Gracefully skip other errors
+                Ok(_) => results.push_back((project_id, None)),
+                Err(SplitError::DistributionsPaused) => {
+                    return Err(SplitError::DistributionsPaused)
                 }
+                Err(e) => results.push_back((project_id, Some(e))),
             }
         }
 
-        Ok(())
+        Ok(results)
     }
 
     // ----------------------------------------------------------
@@ -871,6 +875,12 @@ impl SplitNairaContract {
         let contract_address = env.current_contract_address();
         let token_client = token::Client::new(&env, &token);
         token_client.transfer(&contract_address, &to, &amount);
+
+        env.storage().persistent().extend_ttl(
+            &DataKey::AccountedTokenBalance(token.clone()),
+            PROJECT_TTL_THRESHOLD_LEDGERS,
+            PROJECT_TTL_BUMP_LEDGERS,
+        );
 
         let remaining = available - amount;
         UnallocatedWithdrawn {
@@ -1281,6 +1291,11 @@ impl SplitNairaContract {
         let prev: i128 = env.storage().persistent().get::<DataKey, i128>(&key).unwrap_or(0);
         let next = prev.checked_add(delta).ok_or(SplitError::ArithmeticOverflow)?;
         env.storage().persistent().set(&key, &next);
+        env.storage().persistent().extend_ttl(
+            &key,
+            PROJECT_TTL_THRESHOLD_LEDGERS,
+            PROJECT_TTL_BUMP_LEDGERS,
+        );
         Ok(())
     }
 
