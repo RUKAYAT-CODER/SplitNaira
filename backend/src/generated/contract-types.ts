@@ -263,11 +263,22 @@ export interface Collaborator_claimedEvent {
   project_id: string;
   claimer: string;
   amount: string;
+  distribution_round: number;
 }
 
 export interface Splits_updated_with_pending_balanceEvent {
   project_id: string;
   pending_balance: string;
+}
+
+export interface Token_allowedEvent {
+  token: string;
+  admin: string;
+}
+
+export interface Token_disallowedEvent {
+  token: string;
+  admin: string;
 }
 
 // Error Types
