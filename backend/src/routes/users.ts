@@ -21,45 +21,43 @@ usersRouter.post("/register", async (req: Request, res: Response, next: NextFunc
 
     const { walletAddress, email, alias } = userRegistrationSchema.parse(req.body);
 
-    // Execute user registration within transaction
+    // Get repository without opening a transaction
+    const dataSource = getDataSource();
+    const userRepository = dataSource.getRepository(User);
+
+    // Lightweight existence check before starting a transaction
+    const walletExists = await userRepository.exist({
+      where: { walletAddress },
+    });
+
+    if (walletExists) {
+      return res.status(409).json({
+        error: "conflict",
+        message: "Wallet address already registered.",
+      });
+    }
+
+    // Only open a transaction if the wallet does not already exist
     const savedUser = await withTransaction(async (queryRunner) => {
       const userRepository = queryRunner.manager.getRepository(User);
 
-      // Check if user already exists
-      const existingUser = await userRepository.findOne({
-        where: { walletAddress }
-      });
-
-      if (existingUser) {
-        throw new AppError(
-          ErrorType.VALIDATION,
-          ErrorCode.VALIDATION_ERROR,
-          "User with this wallet address already exists.",
-          undefined,
-          { walletAddress }
-        );
-      }
-
-      // Create new user
       const newUser = userRepository.create({
         walletAddress,
         email,
         alias,
         role: "user",
-        isActive: true
+        isActive: true,
       });
 
-      // Save to database within transaction
       return await userRepository.save(newUser);
     });
 
     logger.info("User registered successfully", {
       userId: savedUser.id,
       walletAddress: savedUser.walletAddress,
-      requestId
+      requestId,
     });
 
-    // Return user data (excluding sensitive fields if any)
     return res.status(201).json({
       id: savedUser.id,
       walletAddress: savedUser.walletAddress,
@@ -68,7 +66,7 @@ usersRouter.post("/register", async (req: Request, res: Response, next: NextFunc
       role: savedUser.role,
       isActive: savedUser.isActive,
       createdAt: savedUser.createdAt.toISOString(),
-      updatedAt: savedUser.updatedAt.toISOString()
+      updatedAt: savedUser.updatedAt.toISOString(),
     });
   } catch (error) {
     return next(error);

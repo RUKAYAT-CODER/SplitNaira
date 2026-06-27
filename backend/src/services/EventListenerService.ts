@@ -21,17 +21,26 @@ export async function startEventListenerService() {
 
   try {
     const server = getStellarRpcServer();
-    const latestLedger = await executeWithRetry(() => server.getLatestLedger());
-    // Start polling from 100 ledgers back to cover any server-restart gaps, or current sequence
+    const latestLedger = await executeWithRetry(() =>
+      server.getLatestLedger()
+    );
+
+    // Start polling from 100 ledgers back to cover restart gaps
     startLedger = Math.max(1, latestLedger.sequence - 100);
-    logger.info(`Initialized EventListenerService to start polling from ledger: ${startLedger}`);
+
+    logger.info(
+      `Initialized EventListenerService to start polling from ledger: ${startLedger}`
+    );
   } catch (error) {
-    logger.error("Failed to fetch latest ledger on EventListenerService startup. Polling from latest.", { error });
+    logger.error(
+      "Failed to fetch latest ledger on EventListenerService startup. Polling from latest.",
+      { error }
+    );
   }
 
   pollInterval = setInterval(() => {
     void pollEvents();
-  }, 5000); // Poll every 5 seconds
+  }, 5000);
 }
 
 export function stopEventListenerService() {
@@ -52,6 +61,7 @@ export function getServiceHealth() {
 
 export async function pollEvents() {
   if (isPolling) return;
+
   isPolling = true;
 
   try {
@@ -64,23 +74,27 @@ export async function pollEvents() {
       {
         type: "contract" as const,
         contractIds: [config.contractId],
-      }
+      },
     ];
 
     const filterOptions: Parameters<typeof server.getEvents>[0] = cursor
       ? { filters, cursor, limit: 100 }
       : startLedger
-        ? { filters, startLedger, limit: 100 }
-        : { filters, cursor: "", limit: 100 };
+      ? { filters, startLedger, limit: 100 }
+      : { filters, cursor: "", limit: 100 };
 
-    const response = await executeWithRetry(() => server.getEvents(filterOptions));
+    const response = await executeWithRetry(() =>
+      server.getEvents(filterOptions)
+    );
 
-    if (response && response.events && response.events.length > 0) {
+    if (response?.events?.length) {
+      const records: TransactionRecord[] = [];
+
       for (const event of response.events) {
         try {
-          const topics = event.topic.map((t) => {
+          const topics = event.topic.map((topic) => {
             try {
-              return String(scValToNative(t));
+              return String(scValToNative(topic));
             } catch {
               return "";
             }
@@ -131,10 +145,41 @@ export async function pollEvents() {
                 status: "completed"
               });
             }
+          } catch (err) {
+            logger.warn(
+              `Could not resolve token address for project ${projectId}. Using fallback.`,
+              { err }
+            );
           }
+
+          records.push(
+            repo.create({
+              roundId: projectId,
+              recipient,
+              amount,
+              token,
+              timestamp,
+              txHash,
+              status: "completed",
+            })
+          );
         } catch (eventError) {
-          logger.error("Error processing polled Soroban event", { event, error: eventError });
+          logger.error("Error processing polled Soroban event", {
+            event,
+            error: eventError,
+          });
         }
+      }
+
+      if (records.length > 0) {
+        await repo.upsert(records, {
+          conflictPaths: ["txHash"],
+          skipUpdateIfNoValuesChanged: true,
+        });
+
+        logger.info(
+          `Upserted ${records.length} transaction record(s) from current event batch.`
+        );
       }
 
       if (response.cursor) {
@@ -142,7 +187,9 @@ export async function pollEvents() {
       }
     }
   } catch (error) {
-    logger.error("Error occurred in background Soroban event poll", { error });
+    logger.error("Error occurred in background Soroban event poll", {
+      error,
+    });
   } finally {
     isPolling = false;
   }

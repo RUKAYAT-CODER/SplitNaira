@@ -90,8 +90,11 @@ pub enum SplitError {
     // Arithmetic Errors
     // ---------------------------------------------------------------------
 
-    /// Arithmetic overflow occurred.
-    ArithmeticOverflow = 14,
+    /// Project has exceeded the maximum allowed number of collaborators
+    TooManyCollaborators = 19,
+
+    /// Cached accounted balance exceeds the contract's actual token balance
+    AccountingDiscrepancy = 20,
 }
 
 impl SplitError {
