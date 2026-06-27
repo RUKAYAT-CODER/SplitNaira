@@ -4,6 +4,7 @@ import { TransactionRecord } from "../entities/Transaction.js";
 import { logger } from "./logger.js";
 import { scValToNative } from "@stellar/stellar-sdk";
 import { fetchProjectById } from "./splits.service.js";
+import { publishSseEvent } from "./SseEventBus.js";
 
 let pollInterval: NodeJS.Timeout | null = null;
 let isPolling = false;
@@ -120,6 +121,15 @@ export async function pollEvents() {
 
               await repo.save(record);
               logger.info(`Synced payout event to database: project=${projectId}, recipient=${recipient}, amount=${amount}, tx=${txHash}`);
+              publishSseEvent(txHash, {
+                txHash,
+                roundId: projectId,
+                recipient,
+                amount,
+                token,
+                timestamp,
+                status: "completed"
+              });
             }
           }
         } catch (eventError) {
