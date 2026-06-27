@@ -5,6 +5,7 @@ import { logger } from "./logger.js";
 import { scValToNative } from "@stellar/stellar-sdk";
 import { fetchProjectById } from "./splits.service.js";
 import { publishSseEvent } from "./SseEventBus.js";
+import { getEventBus, TRANSACTION_CONFIRMED } from "./EventBus.js";
 
 let pollInterval: NodeJS.Timeout | null = null;
 let isPolling = false;
@@ -100,52 +101,36 @@ export async function pollEvents() {
             }
           });
 
-          // Check for `payment_sent` events
-          if (topics[0] === "payment_sent") {
-            const projectId = topics[1] || "";
-            const valueData = scValToNative(event.value) as [string, string | number | bigint];
-            const recipient = valueData[0];
-            const amount = String(valueData[1]);
-            const txHash = event.txHash;
-            const timestamp = Math.floor(new Date(event.ledgerClosedAt).getTime() / 1000);
+          // Only `payment_sent` events are indexed as transaction records.
+          if (topics[0] !== "payment_sent") {
+            continue;
+          }
 
-            // Verify if transaction is already indexed. The database also enforces
-            // uniqueness on txHash via a unique index, but this application-layer
-            // check avoids duplicate save attempts during event polling.
-            const existing = await repo.findOneBy({ txHash });
-            if (!existing) {
-              // Retrieve project to get its token address
-              let token = "Native";
-              try {
-                const project = await fetchProjectById(projectId);
-                if (project && typeof project === "object" && "token" in project) {
-                  token = String(project.token);
-                }
-              } catch (err) {
-                logger.warn(`Could not resolve token address for project ${projectId}. Using fallback.`, { err });
-              }
+          const projectId = topics[1] || "";
+          const valueData = scValToNative(event.value) as [
+            string,
+            string | number | bigint
+          ];
+          const recipient = valueData[0];
+          const amount = String(valueData[1]);
+          const txHash = event.txHash;
+          const timestamp = Math.floor(
+            new Date(event.ledgerClosedAt).getTime() / 1000
+          );
 
-              const record = repo.create({
-                roundId: projectId,
-                recipient,
-                amount,
-                token,
-                timestamp,
-                txHash,
-                status: "completed"
-              });
+          // Skip already-indexed transactions. The DB also enforces uniqueness
+          // on txHash, but this avoids redundant work during polling.
+          const existing = await repo.findOneBy({ txHash });
+          if (existing) {
+            continue;
+          }
 
-              await repo.save(record);
-              logger.info(`Synced payout event to database: project=${projectId}, recipient=${recipient}, amount=${amount}, tx=${txHash}`);
-              publishSseEvent(txHash, {
-                txHash,
-                roundId: projectId,
-                recipient,
-                amount,
-                token,
-                timestamp,
-                status: "completed"
-              });
+          // Resolve the project's token address; fall back to "Native".
+          let token = "Native";
+          try {
+            const project = await fetchProjectById(projectId);
+            if (project && typeof project === "object" && "token" in project) {
+              token = String(project.token);
             }
           } catch (err) {
             logger.warn(
@@ -182,6 +167,21 @@ export async function pollEvents() {
         logger.info(
           `Upserted ${records.length} transaction record(s) from current event batch.`
         );
+
+        // Real-time push: notify the generic event bus (Issue #618) and the
+        // txHash-keyed SSE bus so connected clients are updated immediately.
+        for (const record of records) {
+          getEventBus().emit(TRANSACTION_CONFIRMED, record);
+          publishSseEvent(record.txHash, {
+            txHash: record.txHash,
+            roundId: record.roundId,
+            recipient: record.recipient,
+            amount: record.amount,
+            token: record.token,
+            timestamp: record.timestamp,
+            status: record.status,
+          });
+        }
       }
 
       if (response.cursor) {
