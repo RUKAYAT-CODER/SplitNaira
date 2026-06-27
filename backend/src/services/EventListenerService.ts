@@ -1,6 +1,7 @@
 import { getStellarRpcServer, loadStellarConfig, executeWithRetry } from "./stellar.js";
 import { getDataSource } from "./database.js";
 import { TransactionRecord } from "../entities/Transaction.js";
+import { ServiceState } from "../entities/ServiceState.js";
 import { logger } from "./logger.js";
 import { scValToNative } from "@stellar/stellar-sdk";
 import { fetchProjectById } from "./splits.service.js";
@@ -95,7 +96,7 @@ export async function startEventListenerService() {
     );
   } catch (error) {
     logger.error(
-      "Failed to fetch latest ledger on EventListenerService startup. Polling from latest.",
+      "Failed to determine EventListenerService start position. Polling from latest.",
       { error }
     );
   }
@@ -199,18 +200,31 @@ export async function pollEvents() {
 
     const response = await executeWithRetry(() => server.getEvents(filterOptions));
 
-    if (response?.events?.length) {
-      const records: TransactionRecord[] = [];
+    const newRecords: TransactionRecord[] = [];
+    const ssePayloads: Array<{
+      txHash: string;
+      roundId: string;
+      recipient: string;
+      amount: string;
+      token: string;
+      timestamp: number;
+      status: "completed";
+    }> = [];
 
-      for (const event of response.events) {
-        try {
-          const topics = event.topic.map((topic) => {
-            try {
-              return String(scValToNative(topic));
-            } catch {
-              return "";
-            }
-          });
+    for (const event of response?.events ?? []) {
+      try {
+        const topics = event.topic.map((topic) => {
+          try {
+            return String(scValToNative(topic));
+          } catch {
+            return "";
+          }
+        });
+
+        // Only index `payment_sent` events.
+        if (topics[0] !== "payment_sent") {
+          continue;
+        }
 
           // Only `payment_sent` events are indexed as transaction records.
           if (topics[0] !== "payment_sent") {
@@ -250,16 +264,17 @@ export async function pollEvents() {
             );
           }
 
-          records.push(
-            repo.create({
-              roundId: projectId,
-              recipient,
-              amount,
-              token,
-              timestamp,
-              txHash,
-              status: "completed",
-            })
+        // Resolve the project's token address (best-effort; falls back to Native).
+        let token = "Native";
+        try {
+          const project = await fetchProjectById(projectId);
+          if (project && typeof project === "object" && "token" in project) {
+            token = String(project.token);
+          }
+        } catch (err) {
+          logger.warn(
+            `Could not resolve token address for project ${projectId}. Using fallback.`,
+            { err }
           );
 
           publishSseEvent(txHash, {
@@ -277,22 +292,71 @@ export async function pollEvents() {
             error: eventError,
           });
         }
-      }
 
-      if (records.length > 0) {
-        await repo.upsert(records, {
-          conflictPaths: ["txHash"],
-          skipUpdateIfNoValuesChanged: true,
+        newRecords.push(
+          repo.create({
+            roundId: projectId,
+            recipient,
+            amount,
+            token,
+            timestamp,
+            txHash,
+            status: "completed",
+          })
+        );
+        ssePayloads.push({
+          txHash,
+          roundId: projectId,
+          recipient,
+          amount,
+          token,
+          timestamp,
+          status: "completed",
         });
+      } catch (eventError) {
+        logger.error("Error processing polled Soroban event", {
+          event,
+          error: eventError,
+        });
+      }
+    }
 
+    const nextCursor = response?.cursor ?? cursor;
+
+    // Persist the new records AND the advanced cursor in a single transaction,
+    // so after a restart we never skip events relative to what was committed,
+    // nor re-process a batch that was already committed (Issue #619).
+    if (newRecords.length > 0 || (nextCursor && nextCursor !== cursor)) {
+      await dataSource.transaction(async (manager) => {
+        if (newRecords.length > 0) {
+          await manager.upsert(TransactionRecord, newRecords, {
+            conflictPaths: ["txHash"],
+            skipUpdateIfNoValuesChanged: true,
+          });
+        }
+        if (nextCursor) {
+          await manager.upsert(
+            ServiceState,
+            { key: EVENT_LISTENER_CURSOR_KEY, value: nextCursor },
+            { conflictPaths: ["key"] }
+          );
+        }
+      });
+
+      if (newRecords.length > 0) {
         logger.info(
-          `Upserted ${records.length} transaction record(s) from current event batch.`
+          `Upserted ${newRecords.length} transaction record(s) from current event batch.`
         );
       }
+    }
 
-      if (response.cursor) {
-        cursor = response.cursor;
-      }
+    // Advance the in-memory cursor and emit SSE only after a successful commit.
+    if (nextCursor) {
+      cursor = nextCursor;
+      startLedger = null;
+    }
+    for (const payload of ssePayloads) {
+      publishSseEvent(payload.txHash, payload);
     }
 
     recordPollSuccess();
