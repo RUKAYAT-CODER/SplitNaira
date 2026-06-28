@@ -6,7 +6,7 @@ export function requestTimeout(ms = DEFAULT_TIMEOUT_MS) {
   return (_req: Request, res: Response, next: NextFunction) => {
     const timer = setTimeout(() => {
       if (!res.headersSent) {
-        res.status(503).json({ error: "request_timeout", message: "Request timed out." });
+        res.status(504).json({ error: "gateway_timeout", message: "Request timed out." });
       }
     }, ms);
 
