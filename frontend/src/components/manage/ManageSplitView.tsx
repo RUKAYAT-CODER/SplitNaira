@@ -2,12 +2,14 @@
 
 import { clsx } from "clsx";
 import { sanitizeText } from "@/lib/security";
+import { getExplorerLabel } from "@/lib/stellar";
 import type { SplitProject } from "@/lib/stellar";
 import type { ProjectHistoryItem, AdminStatusState } from "@/lib/api";
 import type { WalletState } from "@/lib/wallet";
 import { Input } from "../Input";
 import { ListSkeleton, ProjectDetailSkeleton } from "../Skeleton";
 import { TransactionReceiptView, type TransactionReceipt } from "../TransactionReceiptView";
+import { BasisPointsPieChart, type PieChartEntry } from "../BasisPointsPieChart";
 
 interface CollaboratorInput {
   id: string;
@@ -321,7 +323,12 @@ export function ManageSplitView({
                 </p>
               )}
               {receipt && (receipt.action === "distribute" || receipt.action === "lock" || receipt.action === "deposit") && (
-                <TransactionReceiptView receipt={receipt} network={wallet.network ?? null} />
+                <TransactionReceiptView
+                  receipt={receipt}
+                  network={wallet.network ?? null}
+                  explorerUrl={getExplorerUrl(receipt.hash, wallet.network ?? null)}
+                  explorerLabel={getExplorerLabel(wallet.network ?? null)}
+                />
               )}
             </div>
           </div>
